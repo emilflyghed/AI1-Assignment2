@@ -96,6 +96,13 @@ def test_action_input_with_pipes_and_quotes():
     assert r.action_input == 'find . -name "*.py" | wc -l'
 
 
+def test_multiline_action_input_is_error():
+    text = "Thought: no heredoc\nAction: bash\nAction Input: echo one\necho two"
+    r = parse(text)
+    assert r.kind == "error"
+    assert "single line" in r.error
+
+
 def test_thought_does_not_swallow_following_action():
     text = "Thought: I will list files\nAction: bash\nAction Input: ls"
     r = parse(text)

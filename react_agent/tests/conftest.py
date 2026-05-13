@@ -1,4 +1,4 @@
-"""Make the part_1/ package importable from the tests directory."""
+"""Make the react_agent/ package importable from the tests directory."""
 import sys
 from pathlib import Path
 

@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from parser import parse
 from prompt import SYSTEM_PROMPT
+from collections.abc import Callable
+
 from tools import run_bash
 
 MAX_ITERS = 10
+SUPPORTED_ACTION = "bash"
 
 
 def _build_prompt(user_task: str, history: str, correction: str | None) -> str:
@@ -24,7 +27,10 @@ def _build_prompt(user_task: str, history: str, correction: str | None) -> str:
     return "\n".join(parts)
 
 
-def run(llm, user_task: str) -> str:
+TraceCallback = Callable[[str, str], None]
+
+
+def run(llm, user_task: str, on_step: TraceCallback | None = None) -> str:
     """Run the ReAct loop until Final Answer or iteration cap. Returns the answer string."""
     history = ""
     correction: str | None = None
@@ -34,6 +40,9 @@ def run(llm, user_task: str) -> str:
         correction = None
 
         response = llm.complete(prompt)
+        if on_step:
+            on_step("model", response.rstrip())
+
         result = parse(response)
 
         if result.kind == "final":
@@ -46,11 +55,27 @@ def run(llm, user_task: str) -> str:
                 "Please respond strictly in the required format "
                 "(Thought + Action + Action Input, OR Thought + Final Answer)."
             )
+            if on_step:
+                on_step("system note", correction)
+            history += response.rstrip() + "\n"
+            continue
+
+        if (result.action or "").strip().lower() != SUPPORTED_ACTION:
+            correction = (
+                f"Unknown action {result.action!r}. "
+                f"The only available action is {SUPPORTED_ACTION!r}. "
+                "Please respond with Action: bash and a one-line Action Input, "
+                "or provide a Final Answer."
+            )
+            if on_step:
+                on_step("system note", correction)
             history += response.rstrip() + "\n"
             continue
 
         # action
         observation = run_bash(result.action_input or "")
+        if on_step:
+            on_step("observation", observation)
         history += response.rstrip() + "\n" + f"Observation: {observation}\n"
 
     return f"[agent stopped: reached max iterations ({MAX_ITERS}) without Final Answer]"

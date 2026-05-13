@@ -3,6 +3,7 @@
 Robust to extra whitespace and minor formatting drift. Case-insensitive labels.
 If both `Action:` and `Final Answer:` appear, Final Answer wins.
 On malformed output, returns ParseResult(kind="error") so the loop can re-prompt.
+Action Input must be one physical line.
 """
 from __future__ import annotations
 
@@ -55,6 +56,11 @@ def parse(text: str) -> ParseResult:
     action_input = _extract_block("Action Input", text)
 
     if action and action_input:
+        if "\n" in action_input or "\r" in action_input:
+            return ParseResult(
+                kind="error",
+                error="Action Input must be a single line",
+            )
         return ParseResult(
             kind="action",
             thought=thought,
