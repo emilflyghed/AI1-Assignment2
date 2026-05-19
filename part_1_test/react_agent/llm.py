@@ -40,30 +40,40 @@ def _read_dotenv_value(path: Path, key: str) -> str | None:
     return None
 
 
+def _dotenv_paths() -> tuple[Path, ...]:
+    part_root = Path(__file__).resolve().parent.parent
+    return (part_root / ".env", part_root.parent / ".env")
+
+
 def _load_api_key() -> str:
     api_key = os.environ.get(API_KEY_ENV_VAR)
     if api_key:
         return api_key
 
-    dotenv_path = Path(__file__).resolve().parent.parent / ".env"
-    dotenv_api_key = _read_dotenv_value(dotenv_path, API_KEY_ENV_VAR)
-    if dotenv_api_key:
-        return dotenv_api_key
+    for dotenv_path in _dotenv_paths():
+        dotenv_api_key = _read_dotenv_value(dotenv_path, API_KEY_ENV_VAR)
+        if dotenv_api_key:
+            return dotenv_api_key
+
+    dotenv_locations = ", ".join(str(path) for path in _dotenv_paths())
 
     raise RuntimeError(
         f"Missing API key. Set {API_KEY_ENV_VAR} in the environment or in "
-        f"{dotenv_path}."
+        f"one of: {dotenv_locations}."
     )
 
 
 def load_config_value(key: str) -> str | None:
-    """Read config from the environment first, then project-root .env."""
+    """Read config from the environment, part .env, or assignment-root .env."""
     value = os.environ.get(key)
     if value:
         return value
 
-    dotenv_path = Path(__file__).resolve().parent.parent / ".env"
-    return _read_dotenv_value(dotenv_path, key)
+    for dotenv_path in _dotenv_paths():
+        dotenv_value = _read_dotenv_value(dotenv_path, key)
+        if dotenv_value:
+            return dotenv_value
+    return None
 
 
 def _post_json_url(

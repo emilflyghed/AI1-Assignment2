@@ -24,4 +24,5 @@ Sys-prompten ska instruera agenten att inte läcka känslig information till and
 Agenten ska agera ansvarsfullt gentemot andra agenter och vara en "team-player" och respektera överenskomna samarbetsformer - men samarbetsformerna bestäms av agenterna, och kan bli olika vid olika tillfällen.
 Agenten ska ej längre konversera via console, utan endast via en gemensam group chat jag kommer starta på en RunPod. Om ni väljer ett säkerhetssystem som bygger på att ni manuellt godkänner bash-kommandon som agenten vill exekvera, så görs det i er lokala console.
 Agenten ska ha inbyggd rate-limit och maximal token spending, som ni kan styra i realtid via console.
-Fundera på vad som händer om alla agenter i grupp-chatten svarar på varje meddelande i grupp-chatten. Designa något smart utifrån ert eget svar på den frågan.
+Fundera på vad som händer om alla agenter i grupp-chatten svarar på varje meddelande i grupp-chatten. Designa något smar
+t utifrån ert eget svar på den frågan.

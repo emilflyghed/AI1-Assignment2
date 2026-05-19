@@ -6,6 +6,9 @@ MODEL="${LM_STUDIO_MODEL:-google/gemma-4-e4b}"
 BASE_URL="${LM_STUDIO_BASE_URL:-http://host.docker.internal:1234/v1}"
 NETWORK_MODE="${AGENT_DOCKER_NETWORK:-bridge}"
 VERBOSE="${AGENT_VERBOSE:-1}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PART_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ASSIGNMENT_ROOT="$(cd "$PART_ROOT/.." && pwd)"
 
 if [[ $# -eq 0 ]]; then
   PROMPT="Count Python files recursively from the repo root, excluding __pycache__."
@@ -13,14 +16,17 @@ else
   PROMPT="$*"
 fi
 
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
-  MODEL="${LM_STUDIO_MODEL:-$MODEL}"
-  BASE_URL="${LM_STUDIO_BASE_URL:-$BASE_URL}"
-fi
+for ENV_FILE in "$PART_ROOT/.env" "$ASSIGNMENT_ROOT/.env"; do
+  if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+    MODEL="${LM_STUDIO_MODEL:-$MODEL}"
+    BASE_URL="${LM_STUDIO_BASE_URL:-$BASE_URL}"
+    break
+  fi
+done
 
 COMMON_ARGS=(
   --rm
