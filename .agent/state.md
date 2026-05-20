@@ -41,7 +41,16 @@ repository root.
   structured-output SWE agent with `system_prompt.txt`, structured JSON tool
   calls, bash, edit-file-section support, and in-memory interactive sessions
   (2026-05-20).
+- Part 2 now also has a Part 3 TH25 hub mode scaffolded behind `--hub`
+  (2026-05-21).
+  - Default hub agent name: `emil-flyghed-agent`.
+  - Hub REST client uses stdlib `urllib`; `--hub-dry-run` validates config
+    without contacting the real server or LLM.
+  - Runtime console controls cover status, pause/resume, message cap, token
+    budget, poll interval, and quit.
+  - Hub mode uses PASS behavior, outbound secret redaction, and a stricter
+    read-oriented bash allowlist for group-chat-triggered tool use.
 
 ## Next
-- Review Part 2 behavior and decide whether to keep the stricter bash denylist
-  or loosen it for more test-command flexibility.
+- Build the Part 2 Docker image before testing hub mode through the wrapper.
+- Connect to the real TH25 hub only when explicitly ready.
