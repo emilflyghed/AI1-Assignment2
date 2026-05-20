@@ -2,9 +2,10 @@
 
 ## Overview
 AI-1 course, assignment 2. Project root contains `part_1/` for the compact
-single-file Part 1 submission and `part_1_test/` for the previous expanded
-implementation. Assignment-level instructions and shared local tooling notes
-remain in the repository root.
+single-file Part 1 submission, `part_2/` for the structured-output Part 2
+agent, and `part_1_test/` for the previous expanded implementation.
+Assignment-level instructions and shared local tooling notes remain in the
+repository root.
 
 ## Done
 - ReAct agent scaffolded per assignment spec (2026-05-10), then organized into
@@ -36,5 +37,11 @@ remain in the repository root.
 - Removed the temporary mock mode from `part_1/react_agent.py` after Docker and
   LM Studio testing completed (2026-05-19).
 
+- Part 2 folder was created from Part 1 and converted into a single-script
+  structured-output SWE agent with `system_prompt.txt`, structured JSON tool
+  calls, bash, edit-file-section support, and in-memory interactive sessions
+  (2026-05-20).
+
 ## Next
-- Test the compact Part 1 script against LM Studio from inside Docker.
+- Review Part 2 behavior and decide whether to keep the stricter bash denylist
+  or loosen it for more test-command flexibility.

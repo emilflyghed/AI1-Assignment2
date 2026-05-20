@@ -48,7 +48,9 @@ Rules:
 """.strip()
 
 BLOCKED_COMMAND_PATTERNS = [
-    r"\brm\s+-rf\b",
+    r"\brm\b",
+    r"\brmdir\b",
+    r"\bunlink\b",
     r"\bsudo\b",
     r"\bsu\b",
     r"\bshutdown\b",

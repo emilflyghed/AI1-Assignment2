@@ -6,6 +6,7 @@ to be transferable on its own.
 ## Structure
 
 - `part_1/` - compact single-file Part 1 ReAct agent with Docker support.
+- `part_2/` - single-script structured-output SWE agent with Docker support.
 - `part_1_test/` - previous expanded/testable Part 1 implementation, kept for
   reference while the simple submission version is developed.
 - `assignment_instructions.md` - assignment-level instructions for all parts.
