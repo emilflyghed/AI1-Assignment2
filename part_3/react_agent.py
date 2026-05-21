@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Part 2 structured-output SWE agent in one Python file.
+"""Part 3 structured-output agent core.
 
 The Python implementation stays in one script. The system prompt is loaded from
-system_prompt.txt because Part 2 explicitly requires a config-file prompt.
+system_prompt.txt. TH25 hub behavior lives in hub_agent.py.
 """
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ def read_dotenv_value(path: Path, key: str) -> str | None:
 
 
 def config_value(*keys: str, default: str | None = None) -> str | None:
-    """Read config from env, part_2/.env, or assignment-root .env."""
+    """Read config from env, this part's .env, or assignment-root .env."""
     for key in keys:
         value = os.environ.get(key)
         if value:
@@ -449,7 +449,7 @@ def make_initial_messages(system_prompt: str) -> list[dict[str, str]]:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the single-file Part 2 structured agent.")
+    parser = argparse.ArgumentParser(description="Run the single-file Part 3 structured agent.")
     parser.add_argument("question", nargs="*", help="Question/task for the agent.")
     parser.add_argument("--model", default=None, help=f"Model name. Default: {DEFAULT_MODEL}.")
     parser.add_argument("--base-url", default=None, help=f"LM Studio base URL. Default: {DEFAULT_BASE_URL}.")
@@ -494,7 +494,7 @@ def run_one_shot(question: str, system_prompt: str, complete: Callable[[list[dic
 
 def run_interactive(system_prompt: str, complete: Callable[[list[dict[str, str]]], str]) -> None:
     messages = make_initial_messages(system_prompt)
-    print("Part 2 agent session. Type 'exit' or 'quit' to stop.")
+    print("Part 3 agent session. Type 'exit' or 'quit' to stop.")
     while True:
         try:
             user_input = input("\nuser> ").strip()

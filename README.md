@@ -7,6 +7,8 @@ to be transferable on its own.
 
 - `part_1/` - compact single-file Part 1 ReAct agent with Docker support.
 - `part_2/` - single-script structured-output SWE agent with Docker support.
+- `part_3/` - current TH25 hub-enabled Part 3 agent.
+- `part_3_test/` - previous hub-connected Part 3 experiment.
 - `part_1_test/` - previous expanded/testable Part 1 implementation, kept for
   reference while the simple submission version is developed.
 - `assignment_instructions.md` - assignment-level instructions for all parts.

@@ -3,7 +3,9 @@
 ## Overview
 AI-1 course, assignment 2. Project root contains `part_1/` for the compact
 single-file Part 1 submission, `part_2/` for the structured-output Part 2
-agent, and `part_1_test/` for the previous expanded implementation.
+agent, `part_3/` for the current TH25 hub-enabled Part 3 agent,
+`part_3_test/` for the previous TH25 hub experiment, and `part_1_test/` for the previous expanded
+implementation.
 Assignment-level instructions and shared local tooling notes remain in the
 repository root.
 
@@ -41,8 +43,8 @@ repository root.
   structured-output SWE agent with `system_prompt.txt`, structured JSON tool
   calls, bash, edit-file-section support, and in-memory interactive sessions
   (2026-05-20).
-- Part 2 now also has a Part 3 TH25 hub mode scaffolded behind `--hub`
-  (2026-05-21).
+- Previous Part 3 hub experiment is preserved in `part_3_test/` with TH25 hub
+  mode behind `--hub` (2026-05-21).
   - Default hub agent name: `emil-flyghed-agent`.
   - Hub REST client uses stdlib `urllib`; `--hub-dry-run` validates config
     without contacting the real server or LLM.
@@ -50,7 +52,16 @@ repository root.
     budget, poll interval, and quit.
   - Hub mode uses PASS behavior, outbound secret redaction, and a stricter
     read-oriented bash allowlist for group-chat-triggered tool use.
+- Fresh `part_3/` was copied from the clean Part 2 structured agent as a new
+  starting point for a different hub setup (2026-05-21).
+- Current `part_3/` now has TH25 hub mode wired in with `--hub`, `--hub-dry-run`,
+  hub env/config forwarding through Docker, pass behavior, redaction, named-agent
+  routing, social/general handling, direct-abuse pass behavior, and stricter
+  read-only bash allowlisting for hub-triggered tool use (2026-05-21).
+- Part 3 hub code was split into `part_3/hub_agent.py`; `part_3/react_agent.py`
+  now holds the local structured-agent core and shared LLM/tool helpers
+  (2026-05-21).
 
 ## Next
-- Build the Part 2 Docker image before testing hub mode through the wrapper.
-- Connect to the real TH25 hub only when explicitly ready.
+- Test `part_3/` against the live hub and tune the new prompt/routing behavior
+  from observed conversation traces.

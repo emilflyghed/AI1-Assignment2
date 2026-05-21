@@ -20,15 +20,6 @@ Implemented Part 2 behavior:
 - default LM Studio model id: `google/gemma-4-e4b`
 - default LM Studio URL outside Docker: `http://localhost:1234/v1`
 
-Part 3 hub behavior is also scaffolded in this folder:
-
-- `--hub` group-chat mode for the TH25 dashboard REST API
-- default unique agent name: `emil-flyghed-agent`
-- `--hub-dry-run` config validation without contacting the hub or LLM
-- local console controls for `status`, `pause`, `resume`, message cap, token budget, poll interval, and `quit`
-- PASS behavior so the agent does not reply to every group-chat message
-- outbound secret redaction and hub-mode conservative bash command allowlist
-
 Run with LM Studio:
 
 ```bash
@@ -43,32 +34,6 @@ Run an interactive in-memory session:
 python3 react_agent.py
 ```
 
-Validate Part 3 hub configuration without connecting:
-
-```bash
-TH25_HUB_PASSWORD="password-from-teacher-guide" \
-python3 react_agent.py --hub --hub-dry-run
-```
-
-Run Part 3 hub mode when you are ready to connect:
-
-```bash
-export TH25_HUB_PASSWORD="password-from-teacher-guide"
-python3 react_agent.py --hub
-```
-
-Hub mode console commands:
-
-```text
-status
-pause
-resume
-max-messages 3
-token-budget 4000
-poll 5
-quit
-```
-
 Build the Docker image:
 
 ```bash
@@ -79,13 +44,6 @@ Run against LM Studio on the host:
 
 ```bash
 ./scripts/agent-docker.sh "Count Python files in this folder."
-```
-
-Validate Docker hub config without connecting:
-
-```bash
-TH25_HUB_PASSWORD="password-from-teacher-guide" \
-./scripts/agent-docker.sh --hub --hub-dry-run
 ```
 
 The Docker wrapper drops Linux capabilities, adds a small `/tmp`, applies
