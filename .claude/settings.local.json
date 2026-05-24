@@ -3,7 +3,14 @@
     "allow": [
       "Bash(python -m pytest tests -v)",
       "Bash(python -m pip install pytest)",
-      "Bash(python main.py)"
+      "Bash(python main.py)",
+      "Bash(python3 -c ' *)",
+      "Bash(git mv *)",
+      "Bash(mkdir -p part_3/scripts)",
+      "Bash(cp part_2/Dockerfile part_2/.dockerignore part_2/Makefile part_2/react_agent.py part_2/README.md part_2/system_prompt.txt part_3/)",
+      "Bash(cp part_2/scripts/agent-docker.sh part_3/scripts/)",
+      "Bash(git check-ignore *)",
+      "Bash(git ls-tree *)"
     ]
   }
 }

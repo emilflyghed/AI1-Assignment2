@@ -2,7 +2,7 @@
 set -euo pipefail
 
 IMAGE_NAME="${AGENT_IMAGE:-ai1-assignment2-part3}"
-MODEL="${LM_STUDIO_MODEL:-google/gemma-4-31b}"
+MODEL="${LM_STUDIO_MODEL:-google/gemma-4-e4b}"
 BASE_URL="${LM_STUDIO_BASE_URL:-http://host.docker.internal:1234/v1}"
 NETWORK_MODE="${AGENT_DOCKER_NETWORK:-bridge}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,11 +12,13 @@ ASSIGNMENT_ROOT="$(cd "$PART_ROOT/.." && pwd)"
 CLI_ARGS=("$@")
 NEEDS_TTY=0
 HUB_MODE=0
+if [[ $# -eq 0 ]]; then
+  NEEDS_TTY=1
+fi
 for ARG in "${CLI_ARGS[@]}"; do
   if [[ "$ARG" == "--hub" || "$ARG" == "--hub-dry-run" ]]; then
     HUB_MODE=1
   fi
-  # Live console controls (status/pause/resume/budget) need an interactive TTY.
   if [[ "$ARG" == "--hub" ]]; then
     NEEDS_TTY=1
   fi
@@ -75,10 +77,10 @@ else
   COMMON_ARGS+=(--add-host=host.docker.internal:host-gateway)
 fi
 
-# The image entrypoint is `python3 -B react_agent.py`, so CLI args are passed
-# straight through. With no args (console mode), send a default one-shot prompt.
-if [[ "$HUB_MODE" -eq 0 && ${#CLI_ARGS[@]} -eq 0 ]]; then
-  CLI_ARGS=("Count Python files in this folder.")
+if [[ "$HUB_MODE" -eq 1 ]]; then
+  CONTAINER_ARGS=(hub_agent.py "${CLI_ARGS[@]}")
+else
+  CONTAINER_ARGS=(react_agent.py "${CLI_ARGS[@]}")
 fi
 
-docker run "${COMMON_ARGS[@]}" "$IMAGE_NAME" "${CLI_ARGS[@]}"
+docker run "${COMMON_ARGS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}"

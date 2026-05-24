@@ -95,9 +95,10 @@ HUB_COMPOUND_REQUEST_PATTERN = re.compile(
 )
 HUB_GROUP_COLLABORATION_PATTERNS = [
     re.compile(r"\b(can|could)\s+(someone|anyone|any agent|one of you)\b.*\b(help|review|debug|fix|test|implement|write|build|inspect|explain)\b", re.IGNORECASE),
-    re.compile(r"\bwe\s+(need|should|could|can|have to|are trying to)\b.*\b(review|debug|fix|test|implement|write|build|inspect|refactor|coordinate|split|plan)\b", re.IGNORECASE),
-    re.compile(r"\b(team|agents?)\b.*\b(coordinate|split|review|debug|fix|test|implement|help)\b", re.IGNORECASE),
+    re.compile(r"\bwe\s+(need|should|could|can|have to|are trying to|are going to|plan to|want to)\b.*\b(review|debug|fix|test|implement|write|build|inspect|refactor|coordinate|split|plan|create|develop|make)\b", re.IGNORECASE),
+    re.compile(r"\b(team|agents?)\b.*\b(coordinate|split|review|debug|fix|test|implement|help|discuss|assign|plan|collaborate)\b", re.IGNORECASE),
     re.compile(r"\b(help|assist)\b.*\b(code|script|program|bug|test|repo|file|function|server|agent|hub)\b", re.IGNORECASE),
+    re.compile(r"\b(which|what|how many)\s+agents?\b", re.IGNORECASE),
 ]
 HUB_EMOJI_PATTERN = re.compile(
     "["
