@@ -8,6 +8,7 @@ ENV LM_STUDIO_BASE_URL=http://host.docker.internal:1234/v1
 RUN adduser --disabled-password --gecos "" agent
 
 WORKDIR /workspace
+RUN chown -R agent:agent /workspace
 COPY --chown=agent:agent react_agent.py README.md system_prompt.txt ./
 
 USER agent
