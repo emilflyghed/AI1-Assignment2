@@ -608,7 +608,17 @@ HUB_GROUP_ADDRESS_TERMS = {
     "team",
     "the team",
 }
-HUB_TASK_KEYWORDS = {"add", "subtract", "multiply", "test"}
+HUB_TASK_KEYWORDS = {
+    "add",
+    "subtract",
+    "multiply",
+    "divide",
+    "calculator",
+    "test",
+    "readme",
+    "docs",
+    "review",
+}
 
 
 class HubHTTPError(RuntimeError):
@@ -833,6 +843,10 @@ def addressed_names(content: str, known_names: set[str]) -> set[str]:
 
 def looks_like_unknown_agent_target(content: str, own_agent_name: str) -> bool:
     first_line = content.strip().splitlines()[0] if content.strip() else ""
+    handle_match = re.match(r"^@([A-Za-z0-9_.-]+)\b", first_line)
+    if handle_match:
+        target = handle_match.group(1)
+        return compact_address_text(target) != compact_address_text(own_agent_name)
     match = re.match(r"^@?([A-Za-z0-9][A-Za-z0-9_.-]*(?:[-_](?:agent|assistant|bot|swe-agent|macmini)|(?:agent|assistant|bot)))\b", first_line, re.IGNORECASE)
     if not match:
         return False
@@ -901,9 +915,16 @@ def is_status_request(message: dict[str, Any]) -> bool:
     )
 
 
+def is_directly_addressed_to_own(message: dict[str, Any], own_agent_name: str) -> bool:
+    return bool(addressed_names(str(message.get("content", "")), {own_agent_name}))
+
+
 def is_status_summary(content: str) -> bool:
     normalized = normalize_address_text(content)
-    has_project_term = any(term in normalized for term in ("calculator", "projekt", "project", "add", "subtract", "multiply", "test"))
+    has_project_term = any(
+        term in normalized
+        for term in ("calculator", "projekt", "project", "add", "subtract", "multiply", "divide", "test", "readme")
+    )
     has_status_term = bool(
         re.search(
             r"\b(current status|status|statusrapport|done with|klar|contains|implemented|"
@@ -914,7 +935,85 @@ def is_status_summary(content: str) -> bool:
     return has_project_term and has_status_term
 
 
+def is_broad_artifact_request(message: dict[str, Any]) -> bool:
+    content = str(message.get("content", ""))
+    normalized = normalize_address_text(content)
+    return (
+        is_human_hub_message(message)
+        and message_has_group_address(content)
+        and bool(
+            re.search(
+                r"\b("
+                r"create|build|implement|write|make|add|produce|draft|"
+                r"skapa|bygg|implementera|skriv|lagg|gora"
+                r")\b",
+                normalized,
+            )
+        )
+    )
+
+
+def latest_broad_artifact_request(messages: list[dict[str, Any]]) -> dict[str, Any] | None:
+    requests = [message for message in messages if is_broad_artifact_request(message)]
+    if not requests:
+        return None
+    return max(requests, key=lambda message: parse_hub_seq(message) or 0)
+
+
+def latest_human_group_message(messages: list[dict[str, Any]]) -> dict[str, Any] | None:
+    group_messages = [
+        message
+        for message in messages
+        if is_human_hub_message(message) and message_has_group_address(str(message.get("content", "")))
+    ]
+    if not group_messages:
+        return None
+    return max(group_messages, key=lambda message: parse_hub_seq(message) or 0)
+
+
+def coordinator_assignment_target(message: dict[str, Any], known_names: set[str]) -> str | None:
+    if not is_human_hub_message(message):
+        return None
+    content = str(message.get("content", ""))
+    normalized = normalize_address_text(content)
+    if not re.search(
+        r"\b(coordinator|coordinate|manager|manage|delegate|lead|samordna|samordnare)\b",
+        normalized,
+    ):
+        return None
+    targets = addressed_names(content, known_names)
+    if not targets:
+        return None
+    return max(targets, key=len)
+
+
+def latest_coordinator_assignment(
+    messages: list[dict[str, Any]],
+    own_agent_name: str,
+) -> tuple[dict[str, Any], str] | None:
+    known_names = known_hub_names([], messages, own_agent_name)
+    assignments: list[tuple[dict[str, Any], str]] = []
+    for message in messages:
+        target = coordinator_assignment_target(message, known_names)
+        if target:
+            assignments.append((message, target))
+    if not assignments:
+        return None
+    return max(assignments, key=lambda item: parse_hub_seq(item[0]) or 0)
+
+
+def has_active_coordinator_assignment(messages: list[dict[str, Any]], own_agent_name: str) -> bool:
+    latest = latest_coordinator_assignment(messages, own_agent_name)
+    if latest is None:
+        return False
+    _message, target = latest
+    return compact_address_text(target) == compact_address_text(own_agent_name)
+
+
 def hub_duplicate_status_decision(new_messages: list[dict[str, Any]], own_agent_name: str) -> HubDecision | None:
+    if any(is_directly_addressed_to_own(message, own_agent_name) for message in new_messages):
+        return None
+
     ordered = sorted(new_messages, key=lambda message: parse_hub_seq(message) or 0)
     for index, message in enumerate(ordered):
         if not is_status_request(message):
@@ -940,23 +1039,140 @@ def hub_duplicate_status_decision(new_messages: list[dict[str, Any]], own_agent_
 
 def task_keywords_in_text(text: str) -> set[str]:
     normalized = normalize_address_text(text)
+    raw = text.lower()
     tasks: set[str] = set()
-    if re.search(r"\badd\b", normalized):
+    if "+" in raw or re.search(r"\b(add|addition|plus|sum|addera)\b", normalized):
         tasks.add("add")
-    if re.search(r"\bsubtract\b", normalized):
+    if "-" in raw or re.search(r"\b(subtract|subtraction|minus|difference|subtrahera)\b", normalized):
         tasks.add("subtract")
-    if re.search(r"\bmultiply\b", normalized):
+    if "*" in raw or re.search(r"\b(multiply|multiplication|times|product|multiplicera)\b", normalized):
         tasks.add("multiply")
-    if re.search(r"\b(test|tests|testfile|testfil|pytest)\b", normalized):
+    if "/" in raw or re.search(r"\b(divide|division|quotient|dela|dividera)\b", normalized):
+        tasks.add("divide")
+    if re.search(r"\b(calculator|kalkylator|raknare)\b", normalized):
+        tasks.add("calculator")
+    if re.search(r"\b(test|tests|testfile|testfil|pytest|unittest)\b", normalized):
         tasks.add("test")
+    if re.search(r"\b(readme|docs|documentation|dokumentation)\b", normalized):
+        tasks.add("readme")
+    if re.search(r"\b(review|code review|granska|granskning)\b", normalized):
+        tasks.add("review")
     return tasks
+
+
+def required_calculator_ops(text: str) -> set[str]:
+    tasks = task_keywords_in_text(text)
+    ops = tasks & {"add", "subtract", "multiply", "divide"}
+    if "calculator" in tasks and not ops:
+        return {"add", "subtract", "multiply", "divide"}
+    return ops
+
+
+def python_function_names_in_text(text: str) -> set[str]:
+    return set(re.findall(r"(?m)^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", text))
+
+
+def answer_mentions_calculator_implementation(answer: str) -> bool:
+    function_names = python_function_names_in_text(answer)
+    if function_names & {"add", "subtract", "multiply", "divide"}:
+        return True
+    return bool(re.search(r"(?im)^\s*#?\s*(file:\s*)?calculator\.py\b", answer))
+
+
+def answer_has_incomplete_calculator_implementation(answer: str, request_text: str) -> bool:
+    required = required_calculator_ops(request_text)
+    if not required or not answer_mentions_calculator_implementation(answer):
+        return False
+    return not required.issubset(python_function_names_in_text(answer))
+
+
+def answer_has_code_artifact(answer: str) -> bool:
+    return bool(
+        "```" in answer
+        or re.search(r"(?m)^\s*(def|class|import|from)\s+\w+", answer)
+        or re.search(r"(?im)^\s*#\s*file:\s*[-\w./]+", answer)
+    )
+
+
+def answer_has_readme_artifact(answer: str) -> bool:
+    normalized = normalize_address_text(answer)
+    return bool(
+        "```markdown" in answer.lower()
+        or (
+            re.search(r"(?m)^#\s+\S+", answer)
+            and re.search(r"\b(readme|usage|testing|features|installation|project)\b", normalized)
+        )
+    )
+
+
+def answer_has_review_finding(answer: str) -> bool:
+    normalized = normalize_address_text(answer)
+    has_review_word = bool(re.search(r"\b(review|finding|issue|bug|missing|fix|recommend|should)\b", normalized))
+    has_specific_target = bool(
+        re.search(r"\b(calculator|divide|division|test|readme|function|error|exception|edge case)\b", normalized)
+    )
+    return has_review_word and has_specific_target
+
+
+def answer_has_concrete_hub_contribution(answer: str, request_text: str) -> bool:
+    if answer_has_incomplete_calculator_implementation(answer, request_text):
+        return False
+    return answer_has_code_artifact(answer) or answer_has_readme_artifact(answer) or answer_has_review_finding(answer)
+
+
+def answer_is_deferral_or_status_only(answer: str) -> bool:
+    normalized = normalize_address_text(answer)
+    return bool(
+        re.search(
+            r"\b("
+            r"please confirm|confirm task assignments|let me know|want me to proceed|"
+            r"please specify|specify the next task|assign a clear|clear next task|"
+            r"waiting for|awaiting|if assigned|can draft|ready to assist|"
+            r"available to assist|next steps|proceed efficiently|avoid duplication|"
+            r"already exist|is complete|are complete|confirmed complete|done and passing"
+            r")\b",
+            normalized,
+        )
+    )
+
+
+def hub_contribution_guard_reason(
+    answer: str,
+    history: list[dict[str, Any]],
+    new_messages: list[dict[str, Any]],
+    own_agent_name: str = "",
+) -> str | None:
+    visible_messages = [*history, *new_messages]
+    broad_request = latest_broad_artifact_request(visible_messages)
+    if broad_request is None:
+        return None
+    latest_group_message = latest_human_group_message(visible_messages)
+    if (
+        latest_group_message is not None
+        and latest_group_message is not broad_request
+        and (parse_hub_seq(latest_group_message) or 0) > (parse_hub_seq(broad_request) or 0)
+    ):
+        return None
+
+    request_text = str(broad_request.get("content", ""))
+    if answer_has_incomplete_calculator_implementation(answer, request_text):
+        return "calculator implementation omitted a requested operation"
+    if answer_has_concrete_hub_contribution(answer, request_text):
+        return None
+    if own_agent_name and has_active_coordinator_assignment(visible_messages, own_agent_name):
+        if answer_has_named_task_assignment(answer, visible_messages, own_agent_name):
+            return None
+    if answer_is_deferral_or_status_only(answer):
+        return "broad build request received a deferral or status-only answer"
+    return "broad build request needs a concrete artifact, review finding, or pass"
 
 
 def claimed_tasks_from_messages(messages: list[dict[str, Any]], own_agent_name: str) -> set[str]:
     claimed: set[str] = set()
     claim_pattern = re.compile(
-        r"\b(done with|created|implemented|i take|taking|i have|jag tar|jag har|"
-        r"klar|skapade|implementerat|tillagd|added|updated|uppdaterat)\b"
+        r"\b(done with|created|implemented|i take|i ll take|i will take|taking|take that on|"
+        r"claims|claim|i have|i ll be writing|i will be writing|jag tar|jag har|"
+        r"klar|skapade|implementerat|tillagd|added|updated|uppdaterat|passed|passerade)\b"
     )
     for message in messages:
         if str(message.get("agent_name")) == own_agent_name:
@@ -965,9 +1181,139 @@ def claimed_tasks_from_messages(messages: list[dict[str, Any]], own_agent_name: 
         normalized = normalize_address_text(content)
         if claim_pattern.search(normalized):
             claimed.update(task_keywords_in_text(content))
-        if re.search(r"\bdef\s+(add|subtract|multiply)\b", content):
+        if re.search(r"\bdef\s+(add|subtract|multiply|divide)\b", content):
             claimed.update(task_keywords_in_text(content))
     return claimed
+
+
+def task_owners_from_messages(messages: list[dict[str, Any]], own_agent_name: str) -> dict[str, set[str]]:
+    owners: dict[str, set[str]] = {}
+    claim_pattern = re.compile(
+        r"\b(done with|created|implemented|i take|i ll take|i will take|taking|take that on|"
+        r"claims|claim|i have|i ll be writing|i will be writing|jag tar|jag har|"
+        r"klar|skapade|implementerat|tillagd|added|updated|uppdaterat|passed|passerade)\b"
+    )
+    for message in messages:
+        sender = str(message.get("agent_name", ""))
+        if sender == own_agent_name:
+            continue
+        content = str(message.get("content", ""))
+        normalized = normalize_address_text(content)
+        tasks = task_keywords_in_text(content)
+        if re.search(r"\bdef\s+(add|subtract|multiply|divide)\b", content):
+            tasks.add("calculator")
+        if not tasks or not claim_pattern.search(normalized):
+            continue
+        for task in tasks:
+            owners.setdefault(task, set()).add(sender)
+    return owners
+
+
+def completed_tasks_from_messages(messages: list[dict[str, Any]], own_agent_name: str) -> set[str]:
+    completed: set[str] = set()
+    complete_pattern = re.compile(
+        r"\b(done with|created|implemented|i have|jag har|klar|skapade|"
+        r"passed|passerade|complete|completed|tests passed|tester)\b"
+    )
+    for message in messages:
+        if str(message.get("agent_name")) == own_agent_name:
+            continue
+        content = str(message.get("content", ""))
+        if complete_pattern.search(normalize_address_text(content)):
+            completed.update(task_keywords_in_text(content))
+        if re.search(r"\bdef\s+(add|subtract|multiply|divide)\b", content):
+            completed.add("calculator")
+    return completed
+
+
+def answer_has_open_ended_claim_invitation(answer: str) -> bool:
+    normalized = normalize_address_text(answer)
+    return bool(
+        re.search(
+            r"\b("
+            r"claim your preferred|confirm your task choice|confirm task choice|"
+            r"please claim|agents please claim|remain open for claiming|available for claims|"
+            r"open for claims|invite agents to claim|claim one task each"
+            r")\b",
+            normalized,
+        )
+    )
+
+
+def answer_has_named_task_assignment(answer: str, visible_messages: list[dict[str, Any]], own_agent_name: str) -> bool:
+    known_names = known_hub_names([], visible_messages, own_agent_name)
+    targets = addressed_names(answer, known_names)
+    other_targets = {
+        target
+        for target in targets
+        if compact_address_text(target) != compact_address_text(own_agent_name)
+        and not is_human_hub_message({"agent_name": target})
+    }
+    normalized = normalize_address_text(answer)
+    has_assignment_word = bool(
+        re.search(
+            r"\b(assign|assigned|take|handle|own|do|write|implement|test|review|document|"
+            r"bug check|check|prepare|produce|final instructions)\b",
+            normalized,
+        )
+    )
+    return bool(other_targets) and has_assignment_word and bool(task_keywords_in_text(answer))
+
+
+def answer_has_conflict_resolution(answer: str) -> bool:
+    normalized = normalize_address_text(answer)
+    return bool(
+        re.search(
+            r"\b(already|duplicate|instead|switch|move|reassign|since|because|done|complete|"
+            r"completed|covered|tests are done|tests passed|task 2 done)\b",
+            normalized,
+        )
+    )
+
+
+def answer_repeats_claimed_or_completed_task(
+    answer: str,
+    visible_messages: list[dict[str, Any]],
+    own_agent_name: str,
+) -> bool:
+    if answer_has_conflict_resolution(answer):
+        return False
+    claimed = task_owners_from_messages(visible_messages, own_agent_name)
+    completed = completed_tasks_from_messages(visible_messages, own_agent_name)
+    unavailable = set(claimed) | completed
+    mentioned = task_keywords_in_text(answer)
+    normalized = normalize_address_text(answer)
+    asks_for_work = bool(
+        re.search(
+            r"\b(please claim|claim|take|write|start|proceed|available|open|remain open|need agents)\b",
+            normalized,
+        )
+    )
+    return asks_for_work and bool(mentioned & unavailable)
+
+
+def hub_coordinator_guard_reason(
+    answer: str,
+    history: list[dict[str, Any]],
+    new_messages: list[dict[str, Any]],
+    own_agent_name: str,
+) -> str | None:
+    visible_messages = [*history, *new_messages]
+    if not has_active_coordinator_assignment(visible_messages, own_agent_name):
+        return None
+    assignment = latest_coordinator_assignment(visible_messages, own_agent_name)
+    assignment_text = str(assignment[0].get("content", "")) if assignment else ""
+    if answer_has_concrete_hub_contribution(answer, assignment_text):
+        return None
+    if answer_has_open_ended_claim_invitation(answer):
+        return "coordinator answer invited claims instead of assigning named tasks"
+    if answer_repeats_claimed_or_completed_task(answer, visible_messages, own_agent_name):
+        return "coordinator answer repeated an already claimed or completed task"
+    if task_keywords_in_text(answer) and not answer_has_named_task_assignment(answer, visible_messages, own_agent_name):
+        normalized = normalize_address_text(answer)
+        if re.search(r"\b(task split|tasks? proposed|remain open|next steps|please)\b", normalized):
+            return "coordinator answer listed tasks without concrete named assignments"
+    return None
 
 
 def message_assigns_task_to_own_agent(message: dict[str, Any], own_agent_name: str) -> bool:
@@ -1005,10 +1351,6 @@ def hub_target_guard_decision(
         return None
     latest = max(new_messages, key=lambda message: parse_hub_seq(message) or 0)
     content = str(latest.get("content", ""))
-    if is_presence_noise(content):
-        return HubDecision("pass", "presence/status message with no task")
-    if message_has_group_address(content):
-        return None
 
     known_names = known_hub_names(history, new_messages, own_agent_name)
     targets = addressed_names(content, known_names)
@@ -1020,6 +1362,10 @@ def hub_target_guard_decision(
     if other_targets or looks_like_unknown_agent_target(content, own_agent_name):
         target_text = ", ".join(sorted(other_targets)) if other_targets else "another agent"
         return HubDecision("pass", f"message addressed to {target_text}")
+    if is_presence_noise(content):
+        return HubDecision("pass", "presence/status message with no task")
+    if message_has_group_address(content):
+        return None
     return None
 
 
@@ -1207,6 +1553,12 @@ def hub_runtime_instructions(agent_name: str) -> str:
         "Do not answer requests clearly addressed to another named agent. Do not claim created, saved, "
         "run, verified, completed, or future ownership of work unless assigned or clearly unclaimed. "
         "In hub mode, say you drafted/pasted/proposed code rather than that you created a file.\n"
+        "For broad human create/build/implement requests, prefer artifact-first behavior: if no complete "
+        "equivalent code, tests, docs, or review finding is already in the visible chat, post one useful "
+        "artifact directly. If the work is already complete and you have no specific correction, pass.\n"
+        "If a human assigns you as coordinator or manager, delegate with concrete named assignments and "
+        "track visible task state. Do not invite agents to claim preferred tasks when you can assign them. "
+        "Resolve duplicate claims and move the team toward review, docs, verification, and final run instructions.\n"
         "Decide for yourself whether to speak. Staying silent with 'pass' is the right default unless you "
         "are directly addressed, the message is addressed to everyone, or you can add clear unique technical value."
     )
@@ -1227,6 +1579,33 @@ def build_hub_messages(
     history: list[dict[str, Any]],
     new_messages: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
+    visible_messages = [*history, *new_messages]
+    broad_request = latest_broad_artifact_request(visible_messages)
+    latest_group_message = latest_human_group_message(visible_messages)
+    coordinator_active = has_active_coordinator_assignment(visible_messages, config.agent_name)
+    artifact_instruction = ""
+    if (
+        broad_request is not None
+        and (
+            latest_group_message is broad_request
+            or latest_group_message is None
+            or (parse_hub_seq(latest_group_message) or 0) <= (parse_hub_seq(broad_request) or 0)
+        )
+    ):
+        artifact_instruction = (
+            "\nA broad human build request is active. Do not post coordination, status, or confirmation requests. "
+            "If a complete equivalent artifact is not already visible, post concrete code/content/review now. "
+            "If it is already complete and you have no specific correction, pass."
+        )
+    coordinator_instruction = ""
+    if coordinator_active:
+        coordinator_instruction = (
+            "\nYou are the assigned coordinator for the active task. Lead with concrete named assignments, "
+            "not open-ended requests for agents to claim work. Track visible progress: if a task is claimed "
+            "or completed, do not assign it again unless you explicitly resolve the conflict. Move agents "
+            "from completed or duplicate work to open review, bug-checking, documentation, or final-run tasks. "
+            "If a missing artifact blocks progress, paste it yourself."
+        )
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "system", "content": hub_runtime_instructions(config.agent_name)},
@@ -1246,6 +1625,8 @@ def build_hub_messages(
                 "Return exactly one JSON object. Hub mode is text-only: use action='pass' to stay silent "
                 "or action='final' to post one concise group-chat message. Do not use action='tool'. "
                 "If code is needed, include the code directly in the chat answer."
+                f"{artifact_instruction}"
+                f"{coordinator_instruction}"
             ),
         }
     )
@@ -1292,9 +1673,14 @@ def run_hub_decision(
             future_claim = future_claim_requires_assignment(answer, new_messages, config.agent_name)
             invalid_path = final_mentions_invalid_collaboration_path(answer)
             blocked_misuse = final_misuses_blocked_tool_result(answer, blocked_tool_seen)
-            if invalid_claim or future_claim or invalid_path or blocked_misuse:
+            contribution_issue = hub_contribution_guard_reason(answer, history, new_messages, config.agent_name)
+            coordinator_issue = hub_coordinator_guard_reason(answer, history, new_messages, config.agent_name)
+            if invalid_claim or future_claim or invalid_path or blocked_misuse or contribution_issue or coordinator_issue:
                 if correction_sent:
-                    return HubDecision("pass", "model claimed unverified work or misread a blocked tool result")
+                    return HubDecision(
+                        "pass",
+                        contribution_issue or coordinator_issue or "model returned an unsafe or low-value hub answer",
+                    )
                 correction_sent = True
                 messages.append(
                     {
@@ -1304,7 +1690,12 @@ def run_hub_decision(
                             "completed files/tests. Do not mention /workspace/, /sandbox/, shared/, or "
                             "any local path for collaboration. Do not claim future ownership of another "
                             "agent's task. Return a corrected JSON object: action='pass' or action='final' "
-                            "with code/content directly in chat."
+                            "with code/content directly in chat. For an active broad build request, do not "
+                            "post coordination, repeated status, or confirmation requests. If the work is "
+                            "not already complete, paste a concrete artifact now; if it is complete and "
+                            "you have no specific correction, pass. If you are assigned coordinator, assign "
+                            "concrete named tasks, resolve duplicate claims, and move agents from completed "
+                            "work to open review, bug-checking, docs, or final-instructions tasks."
                         ),
                     }
                 )
