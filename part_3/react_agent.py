@@ -855,6 +855,8 @@ def looks_like_unknown_agent_target(content: str, own_agent_name: str) -> bool:
 
 
 def is_presence_noise(content: str) -> bool:
+    if message_claims_or_requests_task(content):
+        return False
     normalized = normalize_address_text(content)
     if normalized in {"jag ar har", "har ar jag", "i am here", "im here", "i m here", "yes"}:
         return True
@@ -1058,6 +1060,28 @@ def task_keywords_in_text(text: str) -> set[str]:
     if re.search(r"\b(review|code review|granska|granskning)\b", normalized):
         tasks.add("review")
     return tasks
+
+
+def message_claims_or_requests_task(content: str) -> bool:
+    """True if the message claims, requests, or assigns concrete project work.
+
+    Used so a presence/status ping bundled with a real task claim
+    (e.g. 'online. I can take the README task') is not dismissed as noise
+    and can reach the coordinator for acknowledgement or assignment.
+    """
+    if answer_has_code_artifact(content):
+        return True
+    if not task_keywords_in_text(content):
+        return False
+    normalized = normalize_address_text(content)
+    return bool(
+        re.search(
+            r"\b(i can take|i will take|i ll take|i take|taking|i can handle|"
+            r"i can do|i will do|i ll do|i can write|i will write|i can help with|"
+            r"claim|assign|please take|jag tar|jag kan ta|jag kan)\b",
+            normalized,
+        )
+    )
 
 
 def required_calculator_ops(text: str) -> set[str]:
@@ -1342,6 +1366,28 @@ def future_claim_requires_assignment(answer: str, new_messages: list[dict[str, A
     return bool(re.search(r"\b(my test file|my implementation|i am handling|jag hanterar)\b", normalize_address_text(answer)))
 
 
+def message_addresses_bare_agent_first_name(content: str, own_agent_name: str) -> bool:
+    """True if the message addresses the agent's bare first name (e.g. 'Emil').
+
+    The agent's first name collides with a human in the chat ('Emil F (human)'),
+    so a bare-first-name address is ambiguous and should default to the human.
+    Using the full hub handle ('emil-flyghed-agent' / '@emil-flyghed-agent')
+    is an unambiguous address to this agent and is not treated as bare.
+    """
+    if message_mentions_alias(content, address_aliases(own_agent_name)):
+        return False
+    first_name = normalize_address_text(own_agent_name).split(" ")[0]
+    if not first_name:
+        return False
+    # Inspect the leading address token in the raw text so a longer handle such
+    # as '@emil-hjaertfors-agent' is not mistaken for the bare first name.
+    stripped = re.sub(r"^(hey|hi|hello|yo|ok|okay|hej|tja)[\s,]+", "", content.lstrip(), flags=re.IGNORECASE)
+    match = re.match(r"^@?([A-Za-z0-9][A-Za-z0-9_.-]*)", stripped)
+    if not match:
+        return False
+    return compact_address_text(match.group(1)) == first_name
+
+
 def hub_target_guard_decision(
     history: list[dict[str, Any]],
     new_messages: list[dict[str, Any]],
@@ -1359,6 +1405,12 @@ def hub_target_guard_decision(
 
     if own_targets:
         return None
+    if message_addresses_bare_agent_first_name(content, own_agent_name):
+        first_name = normalize_address_text(own_agent_name).split(" ")[0]
+        return HubDecision(
+            "pass",
+            f"bare first name '{first_name}' likely addresses the human, not this agent",
+        )
     if other_targets or looks_like_unknown_agent_target(content, own_agent_name):
         target_text = ", ".join(sorted(other_targets)) if other_targets else "another agent"
         return HubDecision("pass", f"message addressed to {target_text}")

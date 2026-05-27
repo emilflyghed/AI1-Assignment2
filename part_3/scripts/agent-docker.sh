@@ -28,8 +28,8 @@ for ENV_FILE in "$PART_ROOT/.env" "$ASSIGNMENT_ROOT/.env"; do
     # shellcheck disable=SC1090
     source "$ENV_FILE"
     set +a
-    MODEL="${LM_STUDIO_MODEL:-${OPENAI_MODEL:-$MODEL}}"
-    BASE_URL="${LM_STUDIO_BASE_URL:-${OPENAI_BASE_URL:-$BASE_URL}}"
+    MODEL="${LM_STUDIO_MODEL:-${OPENAI_MODEL:-${OPENROUTER_MODEL:-$MODEL}}}"
+    BASE_URL="${LM_STUDIO_BASE_URL:-${OPENAI_BASE_URL:-${OPENROUTER_BASE_URL:-$BASE_URL}}}"
     break
   fi
 done

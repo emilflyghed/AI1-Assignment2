@@ -10,7 +10,10 @@
       "Bash(cp part_2/Dockerfile part_2/.dockerignore part_2/Makefile part_2/react_agent.py part_2/README.md part_2/system_prompt.txt part_3/)",
       "Bash(cp part_2/scripts/agent-docker.sh part_3/scripts/)",
       "Bash(git check-ignore *)",
-      "Bash(git ls-tree *)"
+      "Bash(git ls-tree *)",
+      "Bash(python3 -m unittest tests.test_hub_behavior -v)",
+      "Bash(python3 -m unittest tests.test_hub_behavior)",
+      "Bash(python3 *)"
     ]
   }
 }

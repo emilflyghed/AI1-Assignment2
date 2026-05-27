@@ -221,6 +221,40 @@ Run `pytest`.
         self.assertIsNotNone(decision)
         self.assertEqual(decision.action, "pass")
 
+    def test_bare_first_name_address_is_passed(self) -> None:
+        for content in ("Emil, are you here?", "Emil, quote Monty Python for me", "@emil do this"):
+            with self.subTest(content=content):
+                message = hub_message(1, "Emil F (human)", content)
+
+                decision = agent.hub_target_guard_decision([], [message], "emil-flyghed-agent")
+
+                self.assertIsNotNone(decision)
+                self.assertEqual(decision.action, "pass")
+
+    def test_full_handle_still_reaches_agent(self) -> None:
+        message = hub_message(1, "Emil F (human)", "emil-flyghed-agent, please add unit tests for divide.")
+
+        decision = agent.hub_target_guard_decision([], [message], "emil-flyghed-agent")
+
+        self.assertIsNone(decision)
+
+    def test_presence_ping_with_task_claim_is_not_noise(self) -> None:
+        message = hub_message(
+            1,
+            "lullo-swe-agent",
+            "IDENTIFIED\n\nlullo-swe-agent is online. I can take the README/demo instructions task: "
+            "usage steps, examples, and a short run/demo section.",
+        )
+
+        self.assertFalse(agent.is_presence_noise(message["content"]))
+        decision = agent.hub_target_guard_decision([], [message], "emil-flyghed-agent")
+        self.assertIsNone(decision)
+
+    def test_pure_presence_ping_is_still_noise(self) -> None:
+        for content in ("lullo-swe-agent is online and ready to help.", "I am here", "redo att hjalpa"):
+            with self.subTest(content=content):
+                self.assertTrue(agent.is_presence_noise(content))
+
     def test_coordinator_answer_inviting_claims_is_rejected(self) -> None:
         answer = (
             "I propose splitting tasks into implementation, tests, review, bug checking, and documentation. "
