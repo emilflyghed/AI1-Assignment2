@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""Part 2 structured-output SWE agent in one Python file.
-
-The Python implementation stays in one script. The system prompt is loaded from
-system_prompt.txt because Part 2 explicitly requires a config-file prompt.
-"""
 from __future__ import annotations
 
 import argparse

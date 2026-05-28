@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Part 1 ReAct agent in one Python file.
-
-This is intentionally small and explicit:
-- no agent frameworks
-- no provider-native tool/function calling
-- raw text parsing for a homemade BASH tool call
-"""
 from __future__ import annotations
 
 import argparse
