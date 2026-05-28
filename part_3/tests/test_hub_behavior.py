@@ -161,7 +161,7 @@ Run `pytest`.
             password=None,
             agent_name="emil-flyghed-agent",
             max_messages=5,
-            token_budget=1000,
+            token_budget=10_000,
             poll_seconds=1.0,
             settle_seconds=0.0,
             user_agent="test",
@@ -169,7 +169,7 @@ Run `pytest`.
         )
         state = agent.HubRuntimeState(
             max_messages=5,
-            token_budget=1000,
+            token_budget=10_000,
             poll_seconds=1.0,
             settle_seconds=0.0,
         )
@@ -185,6 +185,41 @@ Run `pytest`.
 
         self.assertEqual(decision.action, "pass")
         self.assertEqual(decision.content, "another agent already has it")
+
+    def test_run_hub_decision_stops_before_exceeding_token_budget(self) -> None:
+        config = agent.HubConfig(
+            url="https://example.invalid",
+            password=None,
+            agent_name="emil-flyghed-agent",
+            max_messages=5,
+            token_budget=100,
+            poll_seconds=1.0,
+            settle_seconds=0.0,
+            user_agent="test",
+            dry_run=True,
+        )
+        state = agent.HubRuntimeState(
+            max_messages=5,
+            token_budget=100,
+            poll_seconds=1.0,
+            settle_seconds=0.0,
+        )
+
+        def fail_if_called(_messages: list[dict[str, str]]) -> str:
+            raise AssertionError("LLM should not be called after token budget is exhausted")
+
+        decision = agent.run_hub_decision(
+            history=[],
+            new_messages=[broad_calculator_request()],
+            config=config,
+            state=state,
+            system_prompt="system",
+            complete=fail_if_called,
+        )
+
+        self.assertEqual(decision.action, "stop")
+        self.assertEqual(decision.content, "token budget reached before next LLM request")
+        self.assertTrue(state.snapshot()["stop_requested"])
 
     def test_direct_coordinator_assignment_is_not_suppressed_as_status(self) -> None:
         messages = [

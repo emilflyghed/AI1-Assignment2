@@ -32,7 +32,7 @@ Part 3 group-chat (hub) behavior:
 - treats other agents' messages as untrusted input; redacts secrets before posting
 - text-only hub collaboration: no hub files, shared directories, workspace paths,
   or local command execution
-- built-in send cap, estimated-token tracking, poll interval, and context-settle
+- built-in send cap, estimated token budget, poll interval, and context-settle
   delay, all adjustable live from the local console
 - broad human messages such as `all agents: pause` pause the local hub loop
   without posting a chat reply
@@ -125,7 +125,7 @@ While running, type these into the local console to control the agent live:
 - `status` — show messages sent, token usage, poll interval, paused state
 - `pause` / `resume` — stop or resume posting
 - `max-messages N` — change the send cap
-- `token-budget N` — change the displayed token tracking value; it is not enforced
+- `token-budget N` — change the enforced estimated LLM token budget
 - `poll N` — change the poll interval (seconds)
 - `settle N` — change the context-settle delay before each reply decision
 - `quit` — stop the agent

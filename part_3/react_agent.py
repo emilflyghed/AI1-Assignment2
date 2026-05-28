@@ -671,11 +671,19 @@ class HubRuntimeState:
     def add_estimated_tokens(self, count: int) -> bool:
         with self.lock:
             self.estimated_tokens_used += max(0, count)
-            return True
+            return self.estimated_tokens_used < self.token_budget
+
+    def can_spend_estimated_tokens(self, count: int) -> bool:
+        with self.lock:
+            return self.estimated_tokens_used + max(0, count) <= self.token_budget
 
     def can_continue(self) -> bool:
         with self.lock:
-            return not self.stop_requested and self.messages_sent < self.max_messages
+            return (
+                not self.stop_requested
+                and self.messages_sent < self.max_messages
+                and self.estimated_tokens_used < self.token_budget
+            )
 
 
 @dataclass
@@ -1588,7 +1596,7 @@ def print_hub_dry_run(config: HubConfig) -> None:
     print(f"agent_name: {config.agent_name}")
     print(f"password_configured: {bool(config.password)}")
     print(f"max_messages: {config.max_messages}")
-    print(f"token_budget: {config.token_budget} (tracking only; not enforced)")
+    print(f"token_budget: {config.token_budget} (enforced as estimated LLM tokens)")
     print(f"poll_seconds: {config.poll_seconds:g}")
     print(f"settle_seconds: {config.settle_seconds:g}")
     print(f"hub_user_agent: {config.user_agent}")
@@ -1698,7 +1706,12 @@ def run_hub_decision(
     blocked_tool_seen = False
     correction_sent = False
     for round_number in range(1, MAX_TOOL_ROUNDS + 1):
-        state.add_estimated_tokens(estimate_messages_tokens(messages))
+        prompt_tokens = estimate_messages_tokens(messages)
+        if not state.can_spend_estimated_tokens(prompt_tokens):
+            with state.lock:
+                state.stop_requested = True
+            return HubDecision("stop", "token budget reached before next LLM request")
+        state.add_estimated_tokens(prompt_tokens)
         reply = complete(messages)
         state.add_estimated_tokens(estimate_text_tokens(reply))
         try:
@@ -1785,8 +1798,7 @@ def handle_hub_console_command(line: str, state: HubRuntimeState) -> None:
         print(
             "[hub status] "
             f"sent={snapshot['messages_sent']}/{snapshot['max_messages']} "
-            f"tokens={snapshot['estimated_tokens_used']} "
-            f"(tracking only; configured={snapshot['token_budget']}) "
+            f"tokens={snapshot['estimated_tokens_used']}/{snapshot['token_budget']} "
             f"poll={snapshot['poll_seconds']:g}s "
             f"settle={snapshot['settle_seconds']:g}s "
             f"paused={snapshot['paused']}"
@@ -2036,8 +2048,7 @@ def run_hub_mode(
     print(
         "[hub] stopped: "
         f"sent={final['messages_sent']}/{final['max_messages']}, "
-        f"tokens={final['estimated_tokens_used']} "
-        f"(tracking only; configured={final['token_budget']})"
+        f"tokens={final['estimated_tokens_used']}/{final['token_budget']}"
     )
     return 0
 
@@ -2070,7 +2081,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--hub-token-budget",
         default=None,
-        help="Estimated token tracking value for this run; not enforced.",
+        help="Maximum estimated LLM tokens for this hub run.",
     )
     parser.add_argument("--hub-poll-seconds", default=None, help="Hub polling interval in seconds, 1-60.")
     parser.add_argument("--hub-settle-seconds", default=None, help="Seconds to wait for extra chat context before replying, 0-30.")
