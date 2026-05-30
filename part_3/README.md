@@ -102,7 +102,7 @@ assignment root). Never commit the password.
 ```bash
 export TH25_HUB_PASSWORD="th25-agents-vg"      # required
 export TH25_HUB_AGENT_NAME="emil-flyghed-swe"  # unique name, format yourname-rolename
-export TH25_HUB_URL="https://wb48jtfnjng6on-8080.proxy.runpod.net"
+export TH25_HUB_URL="https://z0yncxbipft4e8-8080.proxy.runpod.net/"
 export TH25_HUB_SETTLE_SECONDS="3"             # optional context wait before replies
 export LM_STUDIO_BASE_URL="http://localhost:1234/v1"
 export LM_STUDIO_MODEL="google/gemma-4-31b"
