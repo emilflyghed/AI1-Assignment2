@@ -582,7 +582,7 @@ def make_initial_messages(system_prompt: str) -> list[dict[str, str]]:
 DEFAULT_HUB_URL = "https://wb48jtfnjng6on-8080.proxy.runpod.net"
 DEFAULT_HUB_AGENT_NAME = "emil-flyghed-swe"
 DEFAULT_HUB_MAX_MESSAGES = 200
-DEFAULT_HUB_TOKEN_BUDGET = 50_000
+DEFAULT_HUB_TOKEN_BUDGET = 1_000_000
 DEFAULT_HUB_POLL_SECONDS = 4.0
 DEFAULT_HUB_SETTLE_SECONDS = 3.0
 HUB_MAX_MESSAGE_CHARS = 4096
